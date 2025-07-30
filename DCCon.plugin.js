@@ -180,7 +180,7 @@ const translations = {
       adding: "Adding...",
       noResults: "No results",
       searchDccon: "Search for DCCon",
-      searchArcacon: "Search for ArcaCon",
+      searchArcacon: "Search for ArcaCon or enter JSON",
     },
     contextMenu: {
       edit: "Edit",
@@ -220,7 +220,7 @@ const translations = {
       adding: "추가 중...",
       noResults: "검색 결과가 없습니다",
       searchDccon: "디시콘 검색",
-      searchArcacon: "아카콘 검색",
+      searchArcacon: "아카콘 검색 or JSON 입력",
     },
     contextMenu: {
       edit: "수정",
@@ -1131,35 +1131,51 @@ const getDCConSearchResult = (query, conType) => {
       const controller = new AbortController();
       const timeout = setTimeout(() => controller.abort(), 150000); // 15초 타임아웃
       return new Promise((resolve, reject) => {
-        BdApi.Net.fetch("https://github.com/LemonDouble/arca-con-mirror/raw/refs/heads/main/src/database/db.json", {
-            signal: controller.signal
-          })
-            .then((res) => res.text())
-            .then((body) => {
-              clearTimeout(timeout);
-
-              const json = JSON.parse(body);
-              const results = [];
-
-              const lowerQuery = query.toLowerCase();
-
-              for (const item of json.crawled) {
-                if (item.isDeleted || !item.title) continue;
-                if (!item.title.toLowerCase().includes(lowerQuery)) continue;
-
-
-                results.push({
-                  idx: item.arcaConId,
-                  name: item.title,
-                  thumbnail: `${ArcaConProxyURL}${item.arcaConId}/${item.srcList[0]}`,
-                  seller: item.arcaConId,
-                  conType: 1
-                });
-              }
-
-              resolve(results);
+        try {
+          const original = JSON.parse(query);
+          const results = original.map((x) => {
+            return { 
+                idx: x.id, 
+                name: x.title, 
+                thumbnail: `https:` + x.thumbnail,
+                seller: x.id,
+                conType: ConType.ARCA_CON
+              };
+          });
+          
+          resolve(results);
+        }
+        catch {
+          BdApi.Net.fetch("https://github.com/LemonDouble/arca-con-mirror/raw/refs/heads/main/src/database/db.json", {
+              signal: controller.signal
             })
-            .catch((err) => reject(err));
+              .then((res) => res.text())
+              .then((body) => {
+                clearTimeout(timeout);
+
+                const json = JSON.parse(body);
+                const results = [];
+
+                const lowerQuery = query.toLowerCase();
+
+                for (const item of json.crawled) {
+                  if (item.isDeleted || !item.title) continue;
+                  if (!item.title.toLowerCase().includes(lowerQuery)) continue;
+
+
+                  results.push({
+                    idx: item.arcaConId,
+                    name: item.title,
+                    thumbnail: `${ArcaConProxyURL}${item.arcaConId}/${item.srcList[0]}`,
+                    seller: item.arcaConId,
+                    conType: ConType.ARCA_CON
+                  });
+                }
+
+                resolve(results);
+              })
+              .catch((err) => reject(err));
+        }
       });
       break;
     default:
@@ -1274,7 +1290,7 @@ class SavedDCConCard extends BdApi.React.Component {
       expanded: true,
     };
   }
-  
+
   componentDidMount() {
     const { dccon } = this.props;
     if (dccon.info.conType == ConType.ARCA_CON) {
