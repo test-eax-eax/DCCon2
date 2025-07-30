@@ -1539,7 +1539,7 @@ module.exports = class DCCon {
         margin-right: 8px;
         cursor: pointer;
         border-bottom: 2px solid transparent;
-        color: var(--text-normal);
+        color: var(--header-secondary);
         }
         
         .dccon-tab-item.active {
@@ -1559,7 +1559,7 @@ module.exports = class DCCon {
         border-radius: 4px;
         background: var(--background-secondary);
         border: 1px solid var(--background-tertiary);
-        color: var(--text-normal);
+        color: var(--header-secondary);
         }
         
         .dccon-search-results, .dccon-saved-container {
@@ -1604,7 +1604,7 @@ module.exports = class DCCon {
         grid-column: 1 / -1;
         padding: 32px;
         text-align: center;
-        color: var(--text-normal);
+        color: var(--header-secondary);
         background-color: var(--background-secondary);
         border-radius: 8px;
         }
