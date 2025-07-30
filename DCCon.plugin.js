@@ -326,7 +326,7 @@ class DCConButton extends BdApi.React.Component {
       "div",
       {
         className: `${classes.textarea.buttonContainer} dccon-buttonContainer`,
-        ref: "button",
+        // ref: "button",
       },
       BdApi.React.createElement(
         "button",
@@ -734,7 +734,7 @@ class DCConPanel extends BdApi.React.Component {
                 className: classes.container.input,
                 placeholder: strings.search,
                 autoFocus: true,
-                ref: "input",
+                // ref: "input",
                 onChange: (e) => {
                   this.setState({ textFilter: e.target.value });
                 },
