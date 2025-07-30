@@ -629,21 +629,21 @@ class DCConCategory extends BdApi.React.Component {
     );
   }
 }
-
-// 디시콘 아이템 컴포넌트
 class DCConItem extends BdApi.React.Component {
   constructor(props) {
     super(props);
     this.state = {
       error: false,
     };
+    this.imageRef = BdApi.React.createRef();
+    this.observer = null;
   }
 
   handleError() {
     this.setState({ error: true });
   }
 
-  componentDidMount() {
+  loadImage = () => {
     const { con } = this.props;
     if (con.conType == ConType.ARCA_CON) {
       getArcaConImageAsDataUrl(con.path)
@@ -654,6 +654,39 @@ class DCConItem extends BdApi.React.Component {
           BdApi.Logger.error("ArcaCon", "Image Load Error:", err);
           this.setState({ error: err.message || String(err) });
         });
+    }
+  };
+
+  componentDidMount() {
+    if (this.props.con.conType !== ConType.ARCA_CON) return;
+
+    this.observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            this.loadImage();
+            if (this.observer) {
+              this.observer.disconnect();
+              this.observer = null;
+            }
+          }
+        });
+      },
+      {
+        root: null,
+        threshold: 0.1,
+      }
+    );
+
+    if (this.imageRef.current) {
+      this.observer.observe(this.imageRef.current);
+    }
+  }
+
+  componentWillUnmount() {
+    if (this.observer) {
+      this.observer.disconnect();
+      this.observer = null;
     }
   }
 
@@ -667,7 +700,7 @@ class DCConItem extends BdApi.React.Component {
         "이미지 로드 실패"
       );
     }
-    
+
     let url;
     switch (con.conType) {
       case ConType.DC_CON:
@@ -685,6 +718,7 @@ class DCConItem extends BdApi.React.Component {
         onClick: (e) => {
           sendDCConMessage({ ...con, packageIdx: this.props.packageIdx });
         },
+        ref: this.imageRef,
       },
       BdApi.React.createElement("img", {
         src: url,
