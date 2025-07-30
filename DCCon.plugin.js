@@ -1622,7 +1622,7 @@ module.exports = class DCCon {
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
-        color: var(--text-normal);
+        color: var(--header-secondary);
         }
         
         .dccon-category-toggle {
@@ -1667,7 +1667,7 @@ module.exports = class DCCon {
         }
 
         .dccon-button {
-            color: var(--text-normal);
+          color: var(--header-secondary);
         }
 
         .dccon-scroller {
