@@ -46,6 +46,7 @@ const plugin = BdApi.Plugins.get("DCCon");
 
 const Dispatcher = BdApi.Webpack.getByKeys("dispatch", "subscribe");
 const LocaleStore = BdApi.Webpack.getByKeys("locale", "initialize");
+const UserStore = BdApi.Webpack.getByKeys("getCurrentUser");
 const EPS = {};
 const EPSModules = BdApi.Webpack.getModule((m) =>
   Object.keys(m).some((key) =>
@@ -255,6 +256,10 @@ function getLocaleStrings() {
   const locale = LocaleStore.locale?.toLowerCase() || "en";
   const language = locale.split("-")[0];
   return translations[language] || translations.en;
+}
+
+function getUserId() {
+  return UserStore.getCurrentUser()?.id;
 }
 
 // 디시콘 API 관련 함수
@@ -1076,7 +1081,7 @@ function observe(selector, callback, options = {}, root = document) {
 function loadData(key, defaultData) {
   defaultData = structuredClone(defaultData);
 
-  const data = BdApi.Data.load("DCCon", key);
+  const data = BdApi.Data.load("DCCon_"+getUserId(), key);
   if (data == null) return defaultData;
 
   // 기본값 처리
@@ -1090,7 +1095,7 @@ function loadData(key, defaultData) {
 }
 
 function saveData(key, data) {
-  BdApi.Data.save("DCCon", key, data);
+  BdApi.Data.save("DCCon_"+getUserId(), key, data);
 }
 
 // 디시콘 검색 결과를 가져오는 함수
