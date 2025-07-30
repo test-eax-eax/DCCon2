@@ -488,7 +488,7 @@ class DCConCategory extends BdApi.React.Component {
               viewBox: "0 0 24 24",
             },
             BdApi.React.createElement("path", {
-              fill: "var(--text-normal)",
+              fill: "var(--header-secondary)",
               d: this.state.expanded
                 ? "M7.41 15.41L12 10.83l4.59 4.58L18 14l-6-6-6 6z"
                 : "M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6 1.41-1.41z",
