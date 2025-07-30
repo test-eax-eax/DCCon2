@@ -684,7 +684,7 @@ class DCConItem extends BdApi.React.Component {
       BdApi.React.createElement("img", {
         src: url,
         alt: con.title,
-        loading: (con.conType == ConType.ARCA_CON) ? "eager": "lazy",
+        loading: "lazy",
         onError: () => this.handleError(),
       })
     );
