@@ -470,6 +470,29 @@ const getDCConImage = (con) => {
     }
 };
 
+const getArcaConImageAsDataUrl = (url) => {
+  const ext = (url.split('?')[0].match(/\.([a-zA-Z0-9]+)$/))[1];
+  console.log(ext[1])
+  const mimeType = `image/${ext}`;
+  return BdApi.Net.fetch(url, {
+    headers: {
+      Referer: "https://ac-p2.namu.la",
+    },
+  })
+    .then((response) => response.arrayBuffer())
+    .then((buffer) => {
+      const base64String = btoa(
+        new Uint8Array(buffer).reduce((data, byte) => data + String.fromCharCode(byte), "")
+      );
+      // console.log("ArcaCon Image Base64:", `data:${mimeType};base64,${base64String}`);
+      return `data:${mimeType};base64,${base64String}`;
+    })
+    .catch((err) => {
+      BdApi.Logger.error("ArcaCon", "Failed to fetch ArcaCon image:", err);
+      return `${ArcaConProxyURL}31083/91358683.png`;
+    });
+};
+
 // 디시콘 메시지 전송 함수
 const sendDCConMessage = async (con) => {
   try {
@@ -521,6 +544,19 @@ class DCConCategory extends BdApi.React.Component {
     };
   }
 
+  componentDidMount() {
+    const { dccon } = this.props;
+    if (dccon.info.conType == ConType.ARCA_CON) {
+      getArcaConImageAsDataUrl(dccon.info.list_img_path)
+        .then((dataUrl) => {
+          this.setState({ imageSrc: dataUrl });
+        })
+        .catch((err) => {
+          BdApi.Logger.error("ArcaCon", "Image Load Error:", err);
+          this.setState({ error: err.message || String(err) });
+        });
+    }
+  }
   render() {
     const { dccon } = this.props;
     const strings = getLocaleStrings();
@@ -530,7 +566,7 @@ class DCConCategory extends BdApi.React.Component {
         url = DCConProxyURL + dccon.info.package_idx;
         break;
       case ConType.ARCA_CON:
-        url = `${ArcaConProxyURL}31083/91358683.png`; //TODO
+        url = this.state.imageSrc || `${ArcaConProxyURL}31083/91358683.png`;
         break;
     }
     return BdApi.React.createElement(
@@ -602,6 +638,20 @@ class DCConItem extends BdApi.React.Component {
     this.setState({ error: true });
   }
 
+  componentDidMount() {
+    const { con } = this.props;
+    if (con.conType == ConType.ARCA_CON) {
+      getArcaConImageAsDataUrl(con.path)
+        .then((dataUrl) => {
+          this.setState({ imageSrc: dataUrl });
+        })
+        .catch((err) => {
+          BdApi.Logger.error("ArcaCon", "Image Load Error:", err);
+          this.setState({ error: err.message || String(err) });
+        });
+    }
+  }
+
   render() {
     const { con } = this.props;
 
@@ -619,7 +669,7 @@ class DCConItem extends BdApi.React.Component {
         url = DCConProxyURL + con.path;
         break;
       case ConType.ARCA_CON:
-        url = `${ArcaConProxyURL}31083/91358683.png`;
+        url = this.state.imageSrc || `${ArcaConProxyURL}31083/91358683.png`;
         break;
     }
 
@@ -634,7 +684,7 @@ class DCConItem extends BdApi.React.Component {
       BdApi.React.createElement("img", {
         src: url,
         alt: con.title,
-        loading: "lazy",
+        loading: (con.conType == ConType.ARCA_CON) ? "eager": "lazy",
         onError: () => this.handleError(),
       })
     );
@@ -1218,6 +1268,27 @@ class DCConCard extends BdApi.React.Component {
 
 // 저장된 디시콘 카드 컴포넌트 (추가된 디시콘 관리용)
 class SavedDCConCard extends BdApi.React.Component {
+  constructor(props) {
+    super(props);
+    this.state = {
+      expanded: true,
+    };
+  }
+  
+  componentDidMount() {
+    const { dccon } = this.props;
+    if (dccon.info.conType == ConType.ARCA_CON) {
+      getArcaConImageAsDataUrl(dccon.info.list_img_path)
+        .then((dataUrl) => {
+          this.setState({ imageSrc: dataUrl });
+        })
+        .catch((err) => {
+          BdApi.Logger.error("ArcaCon", "Image Load Error:", err);
+          this.setState({ error: err.message || String(err) });
+        });
+    }
+  }
+
   render() {
     const { dccon } = this.props;
     const strings = getLocaleStrings();
@@ -1227,7 +1298,7 @@ class SavedDCConCard extends BdApi.React.Component {
         url = DCConProxyURL + dccon.info.list_img_path;
         break;
       case ConType.ARCA_CON:
-        url = `${ArcaConProxyURL}31083/91358683.png`;
+        url = this.state.imageSrc || `${ArcaConProxyURL}31083/91358683.png`;
         break;
     }
     return BdApi.React.createElement(
