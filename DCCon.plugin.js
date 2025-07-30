@@ -14,8 +14,11 @@
 
 const DCConBaseURL = "https://dcimg5.dcinside.com/dccon.php?no=";
 const DCConProxyURL = "https://dccon-proxy.minibox.workers.dev/?no=";
+const ArcaConProxyURL = "https://cdn.lemondouble.com/arca-con-mirror/";
+
 const ConType = {
   DC_CON: 0,
+  ARCA_CON: 1,
 };
 Object.freeze(ConType);
 
@@ -177,6 +180,7 @@ const translations = {
       adding: "Adding...",
       noResults: "No results",
       searchDccon: "Search for DCCon",
+      searchArcacon: "Search for ArcaCon",
     },
     contextMenu: {
       edit: "Edit",
@@ -216,6 +220,7 @@ const translations = {
       adding: "추가 중...",
       noResults: "검색 결과가 없습니다",
       searchDccon: "디시콘 검색",
+      searchArcacon: "아카콘 검색",
     },
     contextMenu: {
       edit: "수정",
@@ -274,10 +279,11 @@ const getDCCon = (item) => {
               title: original.info.title,
               main_img_path: original.info.main_img_path,
               list_img_path: original.info.list_img_path,
+              conType: ConType.DC_CON,
             };
 
             const detail = original.detail.map((x) => {
-              return { idx: x.idx, title: x.title, ext: x.ext, path: x.path, conType: ConType.DC_CON };
+              return { idx: x.idx, title: x.title, ext: x.ext, path: x.path, conType: ConType.DC_CON, packageIdx: item.idx };
             });
 
             resolve({ info, detail });
@@ -286,6 +292,37 @@ const getDCCon = (item) => {
             reject(err);
           });
       });
+      break;
+    case ConType.ARCA_CON:
+      return new Promise((resolve, reject) => {
+        BdApi.Net.fetch(`https://arca.live/api/emoticon2/${item.idx}`, {
+          method: "GET",
+        })
+          .then((r) => r.text())
+          .then((body) => {
+            const original = JSON.parse(body);
+
+            const info = {
+              package_idx: item.idx,
+              title: item.name,
+              main_img_path: item.thumbnail,
+              list_img_path: item.thumbnail,
+              conType: ConType.ARCA_CON,
+            };
+
+            const detail = original.map((x) => {
+              const match = x.imageUrl.split('?')[0].match(/\.([a-zA-Z0-9]+)$/);
+              ext = match[1] ? match[1] : "png";
+              return { idx: x.id, title: `${x.id}`, path: 'https:' + (ext === "mp4" ? x.orig : x.imageUrl), conType: ConType.ARCA_CON, ext: ext === "mp4" ? "gif" : ext, packageIdx: item.idx };
+            });
+
+            resolve({ info, detail });
+          })
+          .catch((err) => {
+            reject(err);
+          });
+      });
+      break;
     }
 };
 
@@ -387,25 +424,50 @@ class DCConButton extends BdApi.React.Component {
 
 // 디시콘 이미지를 가져오는 함수
 const getDCConImage = (con) => {
-  return new Promise((resolve, reject) => {
-    BdApi.Net.fetch(DCConBaseURL + con.path, {
-      responseType: "arraybuffer",
-      headers: {
-        Referer: "https://dcimg5.dcinside.com",
-      },
-    })
-      .then((response) => response.arrayBuffer())
-      .then((data) => {
-        const blob = new Blob([data], { type: `image/${con.ext}` });
-        resolve(
-          new File([blob], `dccon.${con.ext}`, { type: `image/${con.ext}` })
-        );
-      })
-      .catch((err) => {
-        BdApi.Logger.error("DCCon", "Failed to fetch DCCon image:", err);
-        reject(err);
+  switch (con.conType) {
+    case ConType.DC_CON:
+      return new Promise((resolve, reject) => {
+        BdApi.Net.fetch(DCConBaseURL + con.path, {
+          responseType: "arraybuffer",
+          headers: {
+            Referer: "https://dcimg5.dcinside.com",
+          },
+        })
+          .then((response) => response.arrayBuffer())
+          .then((data) => {
+            const blob = new Blob([data], { type: `image/${con.ext}` });
+            resolve(
+              new File([blob], `dccon.${con.ext}`, { type: `image/${con.ext}` })
+            );
+          })
+          .catch((err) => {
+            BdApi.Logger.error("DCCon", "Failed to fetch DCCon image:", err);
+            reject(err);
+          });
       });
-  });
+      break;
+    case ConType.ARCA_CON:
+      return new Promise((resolve, reject) => {
+        BdApi.Net.fetch(`${con.path}`, {
+          responseType: "arraybuffer",
+          headers: {
+            Referer: "https://ac-p2.namu.la",
+          },
+        })
+          .then((response) => response.arrayBuffer())
+          .then((data) => {
+            const blob = new Blob([data], { type: `image/${con.ext}` });
+            resolve(
+              new File([blob], `arcacon.${con.ext}`, { type: `image/${con.ext}` })
+            );
+          })
+          .catch((err) => {
+            BdApi.Logger.error("DCCon", "Failed to fetch ArcaCon image:", err);
+            reject(err);
+          });
+      });
+      break;
+    }
 };
 
 // 디시콘 메시지 전송 함수
@@ -465,7 +527,10 @@ class DCConCategory extends BdApi.React.Component {
     let url;
     switch (dccon.info.conType) {
       case ConType.DC_CON:
-        url = DCConBaseURL + dccon.info.package_idx;
+        url = DCConProxyURL + dccon.info.package_idx;
+        break;
+      case ConType.ARCA_CON:
+        url = `${ArcaConProxyURL}31083/91358683.png`; //TODO
         break;
     }
     return BdApi.React.createElement(
@@ -549,9 +614,12 @@ class DCConItem extends BdApi.React.Component {
     }
     
     let url;
-    switch (dccon.info.conType) {
+    switch (con.conType) {
       case ConType.DC_CON:
         url = DCConProxyURL + con.path;
+        break;
+      case ConType.ARCA_CON:
+        url = `${ArcaConProxyURL}31083/91358683.png`;
         break;
     }
 
@@ -606,8 +674,7 @@ class RecentDCCons extends BdApi.React.Component {
       BdApi.React.createElement(
         "div",
         {
-          className: `dccon-category-header ${
-            this.state.expanded ? "expanded" : "collapsed"
+            className: `dccon-category-header ${this.state.expanded ? "expanded" : "collapsed"
           }`,
           onClick: () =>
             this.setState((state) => ({ expanded: !state.expanded })),
@@ -1001,7 +1068,7 @@ const getDCConSearchResult = (query, conType) => {
                 const name = el.children[1].innerText;
                 const seller = el.children[2].innerText;
 
-                return { idx, thumbId, name, seller };
+                return { idx, thumbId, name, seller, conType: ConType.DC_CON };
               }
             );
 
@@ -1009,8 +1076,45 @@ const getDCConSearchResult = (query, conType) => {
           })
           .catch((err) => reject(err));
       });
+      break;
+    case ConType.ARCA_CON:
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 150000); // 15초 타임아웃
+      return new Promise((resolve, reject) => {
+        BdApi.Net.fetch("https://github.com/LemonDouble/arca-con-mirror/raw/refs/heads/main/src/database/db.json", {
+            signal: controller.signal
+          })
+            .then((res) => res.text())
+            .then((body) => {
+              clearTimeout(timeout);
+
+              const json = JSON.parse(body);
+              const results = [];
+
+              const lowerQuery = query.toLowerCase();
+
+              for (const item of json.crawled) {
+                if (item.isDeleted || !item.title) continue;
+                if (!item.title.toLowerCase().includes(lowerQuery)) continue;
+
+
+                results.push({
+                  idx: item.arcaConId,
+                  name: item.title,
+                  thumbnail: `${ArcaConProxyURL}${item.arcaConId}/${item.srcList[0]}`,
+                  seller: item.arcaConId,
+                  conType: 1
+                });
+              }
+
+              resolve(results);
+            })
+            .catch((err) => reject(err));
+      });
+      break;
     default:
       return Promise.reject(new Error("Unsupported conType: " + conType));
+      break;
   }
   
 };
@@ -1050,6 +1154,11 @@ class DCConCard extends BdApi.React.Component {
       case ConType.DC_CON:
         url = DCConProxyURL + item.thumbId;
         break;
+      case ConType.ARCA_CON:
+        url = item.thumbnail;
+        break;
+      default:
+        url = "https://via.placeholder.com/150";
     }
     const strings = getLocaleStrings();
 
@@ -1117,6 +1226,9 @@ class SavedDCConCard extends BdApi.React.Component {
       case ConType.DC_CON:
         url = DCConProxyURL + dccon.info.list_img_path;
         break;
+      case ConType.ARCA_CON:
+        url = `${ArcaConProxyURL}31083/91358683.png`;
+        break;
     }
     return BdApi.React.createElement(
       "div",
@@ -1181,7 +1293,7 @@ class DCConSettingsPanel extends BdApi.React.Component {
     this.setState({ isSearching: true });
 
     try {
-      const results = await getDCConSearchResult(this.state.searchQuery);
+      const results = await getDCConSearchResult(this.state.searchQuery, this.state.activeTab === "arcashop" ? ConType.ARCA_CON : ConType.DC_CON);
       this.setState({ searchResults: results });
     } catch (err) {
       BdApi.Logger.error("DCCon", "디시콘 검색 실패:", err);
@@ -1196,6 +1308,7 @@ class DCConSettingsPanel extends BdApi.React.Component {
   }
 
   renderSearch() {
+    let isArca = this.state.activeTab === "arcashop";
     const strings = getLocaleStrings();
 
     return BdApi.React.createElement(
@@ -1206,7 +1319,7 @@ class DCConSettingsPanel extends BdApi.React.Component {
         { className: "dccon-search-bar" },
         BdApi.React.createElement("input", {
           type: "text",
-          placeholder: strings.settings.searchDccon,
+          placeholder: isArca? strings.settings.searchArcacon:strings.settings.searchDccon,
           value: this.state.searchQuery,
           onChange: (e) => this.setState({ searchQuery: e.target.value }),
           onKeyDown: (e) => {
@@ -1307,6 +1420,15 @@ class DCConSettingsPanel extends BdApi.React.Component {
             onClick: () => this.handleTabChange("shop"),
           },
           "디시콘샵"
+        ),
+        BdApi.React.createElement(
+          "div",
+          {
+            className: `arcacon-tab-item ${this.state.activeTab === "arcashop" ? "active" : ""
+              }`,
+            onClick: () => this.handleTabChange("arcashop"),
+          },
+          "아카콘샵"
         )
       ),
       // 탭 컨텐츠
@@ -1534,7 +1656,8 @@ module.exports = class DCCon {
         margin-bottom: 20px;
         }
         
-        .dccon-tab-item {
+        .dccon-tab-item, 
+		    .arcacon-tab-item {
         padding: 8px 16px;
         margin-right: 8px;
         cursor: pointer;
@@ -1542,7 +1665,8 @@ module.exports = class DCCon {
         color: var(--header-secondary);
         }
         
-        .dccon-tab-item.active {
+        .dccon-tab-item.active,
+        .arcacon-tab-item.active {
         border-bottom: 2px solid var(--brand-experiment);
         font-weight: bold;
         color: var(--header-primary);
