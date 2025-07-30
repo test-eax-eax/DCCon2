@@ -14,6 +14,10 @@
 
 const DCConBaseURL = "https://dcimg5.dcinside.com/dccon.php?no=";
 const DCConProxyURL = "https://dccon-proxy.minibox.workers.dev/?no=";
+const ConType = {
+  DC_CON: 0,
+};
+Object.freeze(ConType);
 
 const ManduIcon = (props) => {
   const size = props.size || "24px";
@@ -249,37 +253,40 @@ function getLocaleStrings() {
 }
 
 // 디시콘 API 관련 함수
-const getDCCon = (idx) => {
-  return new Promise((resolve, reject) => {
-    BdApi.Net.fetch("https://dccon.dcinside.com/index/package_detail", {
-      method: "POST",
-      headers: {
-        "content-type": "application/x-www-form-urlencoded; charset=UTF-8",
-        "x-requested-with": "XMLHttpRequest",
-      },
-      body: `package_idx=${idx}`,
-    })
-      .then((r) => r.text())
-      .then((body) => {
-        const original = JSON.parse(body);
+const getDCCon = (item) => {
+  switch (item.conType) {
+    case ConType.DC_CON:
+      return new Promise((resolve, reject) => {
+        BdApi.Net.fetch("https://dccon.dcinside.com/index/package_detail", {
+          method: "POST",
+          headers: {
+            "content-type": "application/x-www-form-urlencoded; charset=UTF-8",
+            "x-requested-with": "XMLHttpRequest",
+          },
+          body: `package_idx=${item.idx}`,
+        })
+          .then((r) => r.text())
+          .then((body) => {
+            const original = JSON.parse(body);
 
-        const info = {
-          package_idx: original.info.package_idx,
-          title: original.info.title,
-          main_img_path: original.info.main_img_path,
-          list_img_path: original.info.list_img_path,
-        };
+            const info = {
+              package_idx: original.info.package_idx,
+              title: original.info.title,
+              main_img_path: original.info.main_img_path,
+              list_img_path: original.info.list_img_path,
+            };
 
-        const detail = original.detail.map((x) => {
-          return { idx: x.idx, title: x.title, ext: x.ext, path: x.path };
-        });
+            const detail = original.detail.map((x) => {
+              return { idx: x.idx, title: x.title, ext: x.ext, path: x.path, conType: ConType.DC_CON };
+            });
 
-        resolve({ info, detail });
-      })
-      .catch((err) => {
-        reject(err);
+            resolve({ info, detail });
+          })
+          .catch((err) => {
+            reject(err);
+          });
       });
-  });
+    }
 };
 
 // DCCon 버튼 컴포넌트
@@ -455,7 +462,12 @@ class DCConCategory extends BdApi.React.Component {
   render() {
     const { dccon } = this.props;
     const strings = getLocaleStrings();
-
+    let url;
+    switch (dccon.info.conType) {
+      case ConType.DC_CON:
+        url = DCConBaseURL + dccon.info.package_idx;
+        break;
+    }
     return BdApi.React.createElement(
       "div",
       { className: "dccon-category" },
@@ -469,7 +481,7 @@ class DCConCategory extends BdApi.React.Component {
             this.setState((state) => ({ expanded: !state.expanded })),
         },
         BdApi.React.createElement("img", {
-          src: DCConProxyURL + dccon.info.list_img_path,
+          src: url,
           className: "dccon-category-icon",
         }),
         BdApi.React.createElement(
@@ -535,6 +547,13 @@ class DCConItem extends BdApi.React.Component {
         "이미지 로드 실패"
       );
     }
+    
+    let url;
+    switch (dccon.info.conType) {
+      case ConType.DC_CON:
+        url = DCConProxyURL + con.path;
+        break;
+    }
 
     return BdApi.React.createElement(
       "div",
@@ -545,7 +564,7 @@ class DCConItem extends BdApi.React.Component {
         },
       },
       BdApi.React.createElement("img", {
-        src: DCConProxyURL + con.path,
+        src: url,
         alt: con.title,
         loading: "lazy",
         onError: () => this.handleError(),
@@ -958,36 +977,42 @@ function saveData(key, data) {
 }
 
 // 디시콘 검색 결과를 가져오는 함수
-const getDCConSearchResult = (query) => {
-  return new Promise((resolve, reject) => {
-    BdApi.Net.fetch(
-      encodeURI("https://dccon.dcinside.com/hot/1/title/" + query)
-    )
-      .then((r) => r.text())
-      .then((body) => {
-        const parser = new DOMParser();
-        const doc = parser.parseFromString(body, "text/html");
+const getDCConSearchResult = (query, conType) => {
+  switch (conType) {
+    case ConType.DC_CON:
+      return new Promise((resolve, reject) => {
+        BdApi.Net.fetch(
+          encodeURI("https://dccon.dcinside.com/hot/1/title/" + query)
+        )
+          .then((r) => r.text())
+          .then((body) => {
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(body, "text/html");
 
-        if (doc.getElementsByClassName("dccon_search_none").length > 0) {
-          resolve([]);
-          return;
-        }
+            if (doc.getElementsByClassName("dccon_search_none").length > 0) {
+              resolve([]);
+              return;
+            }
 
-        const results = [...doc.getElementsByClassName("link_product")].map(
-          (el) => {
-            const idx = el.href.split("#")[1];
-            const thumbId = el.children[0].src.split("=")[1];
-            const name = el.children[1].innerText;
-            const seller = el.children[2].innerText;
+            const results = [...doc.getElementsByClassName("link_product")].map(
+              (el) => {
+                const idx = el.href.split("#")[1];
+                const thumbId = el.children[0].src.split("=")[1];
+                const name = el.children[1].innerText;
+                const seller = el.children[2].innerText;
 
-            return { idx, thumbId, name, seller };
-          }
-        );
+                return { idx, thumbId, name, seller };
+              }
+            );
 
-        resolve(results);
-      })
-      .catch((err) => reject(err));
-  });
+            resolve(results);
+          })
+          .catch((err) => reject(err));
+      });
+    default:
+      return Promise.reject(new Error("Unsupported conType: " + conType));
+  }
+  
 };
 
 // 버튼 컴포넌트
@@ -1020,7 +1045,12 @@ class DCConCard extends BdApi.React.Component {
     const existingDccon = this.props.savedDccons.find(
       (d) => d.info?.package_idx === item.idx
     );
-
+    let url;
+    switch (item.conType) {
+      case ConType.DC_CON:
+        url = DCConProxyURL + item.thumbId;
+        break;
+    }
     const strings = getLocaleStrings();
 
     return BdApi.React.createElement(
@@ -1029,7 +1059,7 @@ class DCConCard extends BdApi.React.Component {
         className: "dccon-card",
       },
       BdApi.React.createElement("img", {
-        src: `${DCConProxyURL}${item.thumbId}`,
+        src: url,
         style: { borderRadius: "8px" },
       }),
       BdApi.React.createElement(
@@ -1049,7 +1079,7 @@ class DCConCard extends BdApi.React.Component {
             this.setState({ isAdding: true });
 
             try {
-              const dcconData = await getDCCon(item.idx);
+              const dcconData = await getDCCon(item);
               const dccons = loadData("dccons", []);
               dccons.push(dcconData);
               saveData("dccons", dccons);
@@ -1082,14 +1112,19 @@ class SavedDCConCard extends BdApi.React.Component {
   render() {
     const { dccon } = this.props;
     const strings = getLocaleStrings();
-
+    let url;
+    switch (dccon.info.conType) {
+      case ConType.DC_CON:
+        url = DCConProxyURL + dccon.info.list_img_path;
+        break;
+    }
     return BdApi.React.createElement(
       "div",
       {
         className: "dccon-card",
       },
       BdApi.React.createElement("img", {
-        src: DCConProxyURL + dccon.info.main_img_path,
+        src: url,
         style: { borderRadius: "8px" },
       }),
       BdApi.React.createElement(
